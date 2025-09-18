@@ -56,7 +56,7 @@ class Register(Resource):
         user_data = request.json
         # print(trainer_data)
         # Add this new resource to your database, and ensure it’s saved. i.e create an instance of the trainer class, add it to the session and commit the session
-        new_user = User(username=user_data['username'], password=user_data['password'])
+        new_user = User(username=user_data['username'], password_hash=user_data['password'])
         db.session.add(new_user)
         db.session.commit()
         resp = make_response({'success':'user Created'}, 201)
