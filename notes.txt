@@ -37,3 +37,6 @@ Create classes and map them to flask-sqlalchemy
 
 
     
+cookies working with sessions
+authentication
+password hash bcrypt

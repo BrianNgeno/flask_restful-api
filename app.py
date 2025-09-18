@@ -1,8 +1,9 @@
-from flask import Flask, request, make_response, jsonify,json
+from flask import Flask, request, make_response, jsonify,json,session
 from flask_migrate import Migrate
-from models import db, Trainer
+from models import db, Trainer,User
 from flask_restful import Resource,Api
 from werkzeug.exceptions import HTTPException
+from flask_bcrypt import Bcrypt
 
 # add the sqlalchemy database configurtion to our app
 # initialize our sqlalchemy instance with our app
@@ -11,22 +12,75 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gym.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.json.compact = False
+app.secret_key = 'qwerty'
 db.init_app(app)
 migrate = Migrate(app, db,render_as_batch=True)
 api=Api(app)
+bcrypt = Bcrypt(app)
 
+
+@app.before_request
+def check_authorized():
+    if not session['user_id']\
+        and request.endpoint !="login"\
+        and request.endpoint !="signup":
+        return {"error":"401:unauthorised"}
 
 class Welcome(Resource):
     def get(self):
+        
         resp_body={
             "message":"<h1>Flask App Running Smoothly.....</h1>"
         }
+        
+     
         response = make_response(
             resp_body,
             200
         )
         return response
 
+
+class Login(Resource):
+    def post(self):
+        username = request.get_json()['username']
+        user = User.query.filter(User.username==username)
+        password = request.get_json()['password']
+        if password == user.password:
+            session['user_id']=user.id
+            return user.to_dict(),200
+        return {"error":"username or password is incorrect"},401
+
+class Register(Resource):
+    def post(self):
+        user_data = request.json
+        # print(trainer_data)
+        # Add this new resource to your database, and ensure it’s saved. i.e create an instance of the trainer class, add it to the session and commit the session
+        new_user = User(username=user_data['username'], password=user_data['password'])
+        db.session.add(new_user)
+        db.session.commit()
+        resp = make_response({'success':'user Created'}, 201)
+        return resp
+
+api.add_resource(Register,'/signup',endpoint='signup')
+
+
+class CheckSession(Resource):
+    def get(self):
+        user= User.query.filter(User.id==session.get("user_id")).first()
+        if user:
+            return  user.to_dict()
+        else:
+            return {"message":"401:unauthorised access"},401
+
+class Logout(Resource):
+    def delete(self):
+        session['user_id']=None
+        return {"message":"logout success"}
+
+api.add_resource(Logout,'/logout', endpoint="logout")
+api.add_resource(CheckSession,'/check',endpoint="check")
+api.add_resource(Login,'/login',endpoint="login")
 
 class Trainers(Resource):
     def get(self):
