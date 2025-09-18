@@ -21,9 +21,8 @@ bcrypt = Bcrypt(app)
 
 @app.before_request
 def check_authorized():
-    if not session['user_id']\
-        and request.endpoint !="login"\
-        and request.endpoint !="signup":
+    if 'user_id' not in session\
+        and request.endpoint not in ("login","signup"):
         return {"error":"401:unauthorised"}
 
 class Welcome(Resource):
@@ -41,15 +40,23 @@ class Welcome(Resource):
         return response
 
 
+
+
 class Login(Resource):
     def post(self):
-        username = request.get_json()['username']
-        user = User.query.filter(User.username==username)
-        password = request.get_json()['password']
-        if password == user.password:
-            session['user_id']=user.id
-            return user.to_dict(),200
-        return {"error":"username or password is incorrect"},401
+        data = request.get_json()
+
+        username = data.get("username")
+        password = data.get("password")
+
+        # Find user
+        user = User.query.filter_by(username=username).first()
+
+        if user and user.authenticate(password):
+            session["user_id"] = user.id
+            return user.to_dict(), 200
+
+        return {"error": "username or password is incorrect"}, 401
 
 class Register(Resource):
     def post(self):
